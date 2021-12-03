@@ -2,7 +2,6 @@ import keyboard
 import threading
 import tkinter as tk
 import events
-import gui
 from time import sleep
 
 
@@ -24,7 +23,7 @@ from time import sleep
 
 if __name__ == '__main__':
     root = tk.Tk()
-    main_frame = gui.MainFrame(root).pack()
+    main_frame = events.MainFrame(root).pack()
     event_manager = events.EventManager(main_frame)
     event_manager.add_event()
     event_manager.add_event()
