@@ -48,7 +48,7 @@ class EventManager:
         for index, event in self.event_list.items():
             if event.state is not None:
                 if event.state == "ch_hotkey":
-                    event.change_hotkey(key)
+                    event.hotkey = key.name
                     event.modified = True
                     event.state = None
 
@@ -61,6 +61,9 @@ class Event:
             self.event_manager = event_manager
             self.event_index = event_index
             # possible states: None, "ch_hotkey", "ch_key_to_send"..think of more
+
+            # defaults
+            self.temp_hk = ''
 
             # entry hotkey
             self.hk_entry_var = tk.StringVar()
@@ -142,6 +145,23 @@ class Event:
     def modified(self, bool):
         self._modified = bool
 
+    @property
+    def key_to_send(self):
+        return self.event_frame.key_to_send_entry_var
+
+    @key_to_send.setter
+    def key_to_send(self, new_key_to_send):
+        self.event_frame.key_to_send_entry_var = new_key_to_send
+
+    @property
+    def hotkey(self):
+        return self.event_frame.hk_entry_var
+
+    @hotkey.setter
+    def hotkey(self, new_hotkey):
+        print(new_hotkey)
+        self.event_frame.hk_entry_var.set(new_hotkey)
+
     def bind_action_to_hotkey(self):
         ...
 
@@ -149,9 +169,5 @@ class Event:
         # aka Call()
         ...
 
-    def change_hotkey(self, new_hotkey):
-        self.event_frame.hk_entry_var = new_hotkey
 
-    def change_key_to_send(self, new_key_to_send):
-        self.event_frame.key_to_send_entry_var = new_key_to_send
 
