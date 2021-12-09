@@ -22,17 +22,16 @@ class BindingManager:
         self.count_keys_pressed = 0
         self.key_pressed = ''
         self.modifiers_pressed = []
-        print(f'bf parent window = {master}')
 
-        # ugly confirm button
-        self.confirm_button = tk.Button(master.controls_frame, text="Confirm", width=22).pack(side='right', padx=20)
-        print(f'parent_window {master}')
+        # # ugly confirm button
+        # self.confirm_button = tk.Button(master.controls_frame, text="Confirm", width=22, command=self.hook_all)\
+        #     .pack(side='right', padx=20)
 
     def add_binding(self, hotkey="", key_to_send="", mode_index=0):
         self.binding_counter += 1
         self.binding_list[self.binding_counter] = Binding(self.parent_window, self, self.binding_counter,
                                                           hotkey, key_to_send, mode_index)
-        print(f'New bindo! : "{self.binding_list[self.binding_counter].hotkey}"')
+        # print(f'New bindo! : "{self.binding_list[self.binding_counter].hotkey}"')
 
     def remove_binding(self, binding_index):
         if len(self.binding_list) > 1:
@@ -48,7 +47,7 @@ class BindingManager:
         ...
         # todo: load temp_hk etc
 
-    def save_event(self):
+    def save_bindings(self):
         ...
 
     def force_inactive_states(self):
@@ -110,7 +109,6 @@ class BindingManager:
                         self.count_keys_pressed = 0
                         set_combination(binding, final_key_combination)
                         binding.state = None
-                        binding.hook()
 
 
 class Binding:
@@ -143,6 +141,9 @@ class Binding:
             self.action_cb['state'] = 'readonly'
             self.action_cb.set(self.action_cb['values'][0])
 
+            #ugly ass indicator
+            self.ugly_indicator = UglyIndicator(self, 'red')
+
             # button plus
             self.plus_button = tk.Button(self, text='Add', width=10,
                                          command=lambda: BindingManager.add_binding(binding_manager))
@@ -160,6 +161,7 @@ class Binding:
             self.hk_entry.pack(side='left', padx=(10, 5))
             self.key_to_send_entry.pack(side='left', padx=5)
             self.action_cb.pack(side='left', padx=5)
+            self.ugly_indicator.pack(side='left', padx=5)
             self.plus_button.pack(side='left', padx=5)
             self.minus_button.pack(side='left', padx=(5, 10))
             self.pack(side=tk.BOTTOM, padx=5, pady=10, anchor=tk.S)
@@ -193,10 +195,6 @@ class Binding:
         self.binding_frame = self.BindingFrame(parent_window, binding_manager, binding_index, *args, **kwargs)
         self.event_index = binding_index
 
-        # self.delay_mode = self.binding_frame.action_cb_var.get()
-        # self.key_to_send = self.binding_frame.key_to_send_entry_var.get()
-        # self.hotkey = self.binding_frame.hk_entry_var.get()
-
         # properties
         self._state = None
 
@@ -212,6 +210,11 @@ class Binding:
     @state.setter
     def state(self, new_state):
         self._state = new_state
+        if new_state != 'hooked':
+            self.binding_frame.ugly_indicator.change_color('red')
+        if new_state is 'hooked':
+            self.binding_frame.ugly_indicator.change_color('green')
+
 
     @property
     def key_to_send(self):
@@ -255,3 +258,12 @@ class Binding:
     def action(self):
         # aka Call()
         print('ACTION!')
+
+
+class UglyIndicator(tk.Canvas):
+    def __init__(self, master, color):
+        super().__init__(master, width=15, height=15, bg=color)
+
+    def change_color(self, color):
+        self.config(bg=color)
+
