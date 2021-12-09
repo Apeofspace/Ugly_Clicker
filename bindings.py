@@ -3,6 +3,14 @@ import tkinter.ttk as ttk
 import keyboard
 
 
+class UglyIndicator(tk.Canvas):
+    def __init__(self, master, color):
+        super().__init__(master, width=15, height=15, bg=color)
+
+    def change_color(self, color):
+        self.config(bg=color)
+
+
 class MainFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -23,15 +31,10 @@ class BindingManager:
         self.key_pressed = ''
         self.modifiers_pressed = []
 
-        # # ugly confirm button
-        # self.confirm_button = tk.Button(master.controls_frame, text="Confirm", width=22, command=self.hook_all)\
-        #     .pack(side='right', padx=20)
-
     def add_binding(self, hotkey="", key_to_send="", mode_index=0):
         self.binding_counter += 1
         self.binding_list[self.binding_counter] = Binding(self.parent_window, self, self.binding_counter,
                                                           hotkey, key_to_send, mode_index)
-        # print(f'New bindo! : "{self.binding_list[self.binding_counter].hotkey}"')
 
     def remove_binding(self, binding_index):
         if len(self.binding_list) > 1:
@@ -97,9 +100,9 @@ class BindingManager:
                     set_combination(binding, current_key_combination)
 
                     # tests
-                    print(f'modifiers = {self.modifiers_pressed}, key = {self.key_pressed}')
-                    print(f'current_key_combination = {current_key_combination}')
-                    print(f'count_keys_pressed = {self.count_keys_pressed}\n')
+                    # print(f'modifiers = {self.modifiers_pressed}, key = {self.key_pressed}')
+                    # print(f'current_key_combination = {current_key_combination}')
+                    # print(f'count_keys_pressed = {self.count_keys_pressed}\n')
 
                     if self.count_keys_pressed == 0:
                         final_key_combination = "+".join([*self.modifiers_pressed, self.key_pressed])
@@ -110,16 +113,17 @@ class BindingManager:
                         set_combination(binding, final_key_combination)
                         binding.state = None
 
+                        if binding.hotkey != "" and binding.key_to_send != "":
+                            binding.state = 'hooked'
+
 
 class Binding:
     class BindingFrame(tk.Frame):
         def __init__(self, master, binding_manager, binding_index, *args, **kwargs):
             super().__init__(master=master, *args, **kwargs)
-
-
             self.binding_manager = binding_manager
             self.binding_index = binding_index
-            # possible states: None, "ch_hotkey", "ch_key_to_send", "hooked"...think of more
+            # possible states: None, "ch_hotkey", "ch_key_to_send", "hooked"
 
             # defaults
             self.temp_hk = ''
@@ -197,6 +201,7 @@ class Binding:
 
         # properties
         self._state = None
+        self._pressed = False
 
         # initial values
         self.hotkey = hotkey
@@ -212,9 +217,10 @@ class Binding:
         self._state = new_state
         if new_state != 'hooked':
             self.binding_frame.ugly_indicator.change_color('red')
-        if new_state is 'hooked':
+            self.unhook()
+        if new_state == 'hooked':
             self.binding_frame.ugly_indicator.change_color('green')
-
+            self.hook()
 
     @property
     def key_to_send(self):
@@ -234,7 +240,12 @@ class Binding:
         self.binding_frame.hk_entry_var.set(new_hotkey)
 
     @property
-    def delay_mode(self):
+    def delay_mode(self, by_index=False):
+        if by_index:
+            try:
+                return self.binding_frame.action_cb.current()
+            except:
+                return 0
         return self.binding_frame.action_cb_var.get()
 
     @delay_mode.setter
@@ -244,26 +255,38 @@ class Binding:
         else:  # if set by value
             self.binding_frame.action_cb_var.set(mode)
 
+    @property
+    def hotkey_active(self):
+        return self._pressed
+
+    @hotkey_active.setter
+    def hotkey_active(self, value):
+        """Can be True, False or 'Flip' """
+        if value == 'Flip':
+            self._pressed = not self._pressed
+        else:
+            self._pressed=value
+
     def hook(self):
         print(f'Hooking : {self.hotkey} to {self.key_to_send}')
-        keyboard.add_hotkey(self.hotkey, self.action)
+        keyboard.add_hotkey(self.hotkey, self.hotkey_pressed_callback)
 
     def unhook(self):
-        if self.state == 'hooked':
-            try:
-                keyboard.remove_hotkey(self.hotkey)
-            except KeyError:
-                print('Failed to unhook')
+        try:
+            keyboard.remove_hotkey(self.hotkey)
+        except KeyError:
+            print('Failed to unhook')
 
-    def action(self):
+    def hotkey_pressed_callback(self):
         # aka Call()
-        print('ACTION!')
+        self.hotkey_active = 'Flip'
+        if self.delay_mode == 'Continuous':
+            if self.hotkey_active:
+                print('ACTION!')
+                print(self.key_to_send)
+                keyboard.press(self.key_to_send)
+            else:
+                keyboard.release(self.key_to_send)
 
 
-class UglyIndicator(tk.Canvas):
-    def __init__(self, master, color):
-        super().__init__(master, width=15, height=15, bg=color)
-
-    def change_color(self, color):
-        self.config(bg=color)
 
