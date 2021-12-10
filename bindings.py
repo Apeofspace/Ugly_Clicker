@@ -22,7 +22,7 @@ class MainFrame(tk.Tk):
         self.controls_frame.pack(fill='x', expand=True, side='top', pady=(5, 0))
         self.label_hk = tk.Label(self.controls_frame, text="Hotkey shortcut").pack(side='left', padx=25)
         self.label_hk = tk.Label(self.controls_frame, text="Combination to send").pack(side='left', padx=15)
-        self.label_hk = tk.Label(self.controls_frame, text="Delay").pack(side='left', padx=20)
+        self.label_hk = tk.Label(self.controls_frame, text="Repeat").pack(side='left', padx=20)
 
 
 class BindingManager:
@@ -59,7 +59,6 @@ class BindingManager:
         try:
             with open('bindings.txt') as outfile:
                 data = json.load(outfile)
-                print(data)
                 for item in data:
                     self.add_binding(item['hotkey'], item['key_to_send'], item['delay_mode'])
                 for binding in self.binding_list.values():
@@ -200,7 +199,7 @@ class Binding:
             self.ugly_indicator.pack(side='left', padx=5)
             self.plus_button.pack(side='left', padx=5)
             self.minus_button.pack(side='left', padx=(5, 10))
-            self.pack(side=tk.BOTTOM, padx=5, pady=10, anchor=tk.S)
+            self.pack(padx=5, pady=10)
 
         def hk_entry_focus_callback(self, mouse_pointer):
             binding = self.binding_manager.binding_list[self.binding_index]
@@ -325,19 +324,19 @@ class Binding:
         print('Hotkey pressed')
         if self.delay_mode == 'Once':
             if self.hotkey_active:
-                print(f'ACTION! key to send = {self.key_to_send}')
+                # print(f'ACTION! key to send = {self.key_to_send}')
                 keyboard.press(self.key_to_send)
                 self.hotkey_active = False
 
         if self.delay_mode == 'Continuous':
             if self.hotkey_active:
-                print(f'ACTION! key to send = {self.key_to_send}')
+                # print(f'ACTION! key to send = {self.key_to_send}')
                 keyboard.press(self.key_to_send)
             else:
                 keyboard.release(self.key_to_send)
 
         if self.delay_mode == "0.2 sec delay":
-            print(f'{self.delay_mode} : {self.hotkey_active}')
+            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
                 delay = 0.2
                 thread = Thread(target=repeat_press, args=(), daemon=True)
@@ -346,7 +345,7 @@ class Binding:
                 thread = None
 
         if self.delay_mode == "1 sec delay":
-            print(f'{self.delay_mode} : {self.hotkey_active}')
+            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
                 delay = 1
                 thread = Thread(target=repeat_press, args=(), daemon=True)
@@ -355,7 +354,7 @@ class Binding:
                 thread = None
 
         if self.delay_mode == "2 sec delay":
-            print(f'{self.delay_mode} : {self.hotkey_active}')
+            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
                 delay = 2
                 thread = Thread(target=repeat_press, args=(), daemon=True)
