@@ -1,6 +1,9 @@
+import time
 import tkinter as tk
 import tkinter.ttk as ttk
 import keyboard
+from time import sleep
+from threading import Thread
 
 
 class UglyIndicator(tk.Canvas):
@@ -15,7 +18,7 @@ class MainFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.controls_frame = tk.Frame(self)
-        self.controls_frame.pack(fill='x', expand=True, side='top', pady=(5,0))
+        self.controls_frame.pack(fill='x', expand=True, side='top', pady=(5, 0))
         self.label_hk = tk.Label(self.controls_frame, text="Hotkey shortcut").pack(side='left', padx=25)
         self.label_hk = tk.Label(self.controls_frame, text="Combination to send").pack(side='left', padx=15)
         self.label_hk = tk.Label(self.controls_frame, text="Delay").pack(side='left', padx=20)
@@ -39,6 +42,7 @@ class BindingManager:
     def remove_binding(self, binding_index):
         if len(self.binding_list) > 1:
             self.binding_list[binding_index].binding_frame.pack_forget()
+            self.binding_list[binding_index].unhook()
             del self.binding_list[binding_index]
             self.redraw_binding_frames()
 
@@ -105,7 +109,10 @@ class BindingManager:
                     # print(f'count_keys_pressed = {self.count_keys_pressed}\n')
 
                     if self.count_keys_pressed == 0:
-                        final_key_combination = "+".join([*self.modifiers_pressed, self.key_pressed])
+                        if self.key_pressed == '': # nebolshoi kostil
+                            final_key_combination = "+".join([*self.modifiers_pressed])
+                        else:
+                            final_key_combination = "+".join([*self.modifiers_pressed, self.key_pressed])
                         print(f'final_key_combination = {final_key_combination}')
                         self.modifiers_pressed.clear()
                         self.key_pressed = ''
@@ -141,11 +148,11 @@ class Binding:
             # combobox to choose action
             self.action_cb_var = tk.StringVar()
             self.action_cb = ttk.Combobox(self, textvariable=self.action_cb_var)
-            self.action_cb['values'] = ["Continuous", "1 sec delay", "2 sec delay"]
+            self.action_cb['values'] = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay"]
             self.action_cb['state'] = 'readonly'
             self.action_cb.set(self.action_cb['values'][0])
 
-            #ugly ass indicator
+            # ugly ass indicator
             self.ugly_indicator = UglyIndicator(self, 'red')
 
             # button plus
@@ -208,6 +215,10 @@ class Binding:
         self.key_to_send = key_to_send
         self.delay_mode = mode_index
 
+    # def __del__(self):
+    #     self.binding_frame.pack_forget()
+    #     self.unhook()
+
     @property
     def state(self):
         return self._state
@@ -265,7 +276,7 @@ class Binding:
         if value == 'Flip':
             self._pressed = not self._pressed
         else:
-            self._pressed=value
+            self._pressed = value
 
     def hook(self):
         print(f'Hooking : {self.hotkey} to {self.key_to_send}')
@@ -278,15 +289,54 @@ class Binding:
             print('Failed to unhook')
 
     def hotkey_pressed_callback(self):
-        # aka Call()
+        def repeat_press():
+            while True:
+                if self.hotkey_active:
+                    time.sleep(delay)
+                    keyboard.press(self.key_to_send)
+                    sleep(0.01)
+                    keyboard.release(self.key_to_send)
+                else:
+                    return
+
         self.hotkey_active = 'Flip'
+        print('Hotkey pressed')
+        if self.delay_mode == 'Once':
+            if self.hotkey_active:
+                print(f'ACTION! key to send = {self.key_to_send}')
+                keyboard.press(self.key_to_send)
+                self.hotkey_active = False
+
         if self.delay_mode == 'Continuous':
             if self.hotkey_active:
-                print('ACTION!')
-                print(self.key_to_send)
+                print(f'ACTION! key to send = {self.key_to_send}')
                 keyboard.press(self.key_to_send)
             else:
                 keyboard.release(self.key_to_send)
 
+        if self.delay_mode == "0.2 sec delay":
+            print(f'{self.delay_mode} : {self.hotkey_active}')
+            if self.hotkey_active:
+                delay = 0.2
+                thread = Thread(target=repeat_press, args=(), daemon=True)
+                thread.start()
+            else:
+                thread = None
 
+        if self.delay_mode == "1 sec delay":
+            print(f'{self.delay_mode} : {self.hotkey_active}')
+            if self.hotkey_active:
+                delay = 1
+                thread = Thread(target=repeat_press, args=(), daemon=True)
+                thread.start()
+            else:
+                thread = None
 
+        if self.delay_mode == "2 sec delay":
+            print(f'{self.delay_mode} : {self.hotkey_active}')
+            if self.hotkey_active:
+                delay = 2
+                thread = Thread(target=repeat_press, args=(), daemon=True)
+                thread.start()
+            else:
+                thread =None
