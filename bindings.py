@@ -4,6 +4,7 @@ import tkinter.ttk as ttk
 import keyboard
 from time import sleep
 from threading import Thread
+import json
 
 
 class UglyIndicator(tk.Canvas):
@@ -25,40 +26,61 @@ class MainFrame(tk.Tk):
 
 
 class BindingManager:
-    def __init__(self, master):
-        self.binding_list = {}
-        self.parent_window = master
-        self.binding_counter = 0
-        keyboard.hook(self.on_key_press_callback)
-        self.count_keys_pressed = 0
-        self.key_pressed = ''
-        self.modifiers_pressed = []
+    binding_list = {}
+    binding_counter = 0
+    count_keys_pressed = 0
+    key_pressed = ''
+    modifiers_pressed = []
 
-    def add_binding(self, hotkey="", key_to_send="", mode_index=0):
+    def __init__(self, master):
+        self.parent_window = master
+        keyboard.hook(self.on_key_press_callback)
+
+    def add_binding(self, hotkey="", key_to_send="", mode=0):
         self.binding_counter += 1
         self.binding_list[self.binding_counter] = Binding(self.parent_window, self, self.binding_counter,
-                                                          hotkey, key_to_send, mode_index)
+                                                          hotkey, key_to_send, mode)
 
     def remove_binding(self, binding_index):
-        if len(self.binding_list) > 1:
-            self.binding_list[binding_index].binding_frame.pack_forget()
-            self.binding_list[binding_index].unhook()
-            del self.binding_list[binding_index]
-            self.redraw_binding_frames()
+        self.binding_list[binding_index].binding_frame.pack_forget()
+        self.binding_list[binding_index].unhook()
+        del self.binding_list[binding_index]
+        self.redraw_binding_frames()
+        self.save_bindings()
+        if len(self.binding_list) == 0:
+            self.add_binding()
+
 
     def redraw_binding_frames(self):
         for binding in self.binding_list.values():
             binding.binding_frame.pack(side='bottom', padx=5, pady=10)
 
     def load_bindings(self):
-        ...
-        # todo: load temp_hk etc
+        try:
+            with open('bindings.txt') as outfile:
+                data = json.load(outfile)
+                print(data)
+                for item in data:
+                    self.add_binding(item['hotkey'], item['key_to_send'], item['delay_mode'])
+                for binding in self.binding_list.values():
+                    binding.state = 'hooked'
+        except FileNotFoundError as e:
+            print('File not found:', e)
+        except TypeError as e:
+            print('Failed to load JSON: ', e)
+        finally:
+            if len(self.binding_list) == 0:
+                self.add_binding()
 
     def save_bindings(self):
-        ...
+        with open('bindings.txt', 'w') as outfile:
+            data = []
+            for binding in self.binding_list.values():
+                if binding.state == 'hooked':
+                    data.append({'hotkey': binding.hotkey, 'key_to_send': binding.key_to_send, 'delay_mode': binding.delay_mode})
+            json.dump(data, outfile)
 
     def force_inactive_states(self):
-        # make sure there is only one active state across all objects!
         self.count_keys_pressed = 0
         self.key_pressed = ''
         self.modifiers_pressed = []
@@ -109,7 +131,7 @@ class BindingManager:
                     # print(f'count_keys_pressed = {self.count_keys_pressed}\n')
 
                     if self.count_keys_pressed == 0:
-                        if self.key_pressed == '': # nebolshoi kostil
+                        if self.key_pressed == '':  # nebolshoi kostil
                             final_key_combination = "+".join([*self.modifiers_pressed])
                         else:
                             final_key_combination = "+".join([*self.modifiers_pressed, self.key_pressed])
@@ -122,10 +144,13 @@ class BindingManager:
 
                         if binding.hotkey != "" and binding.key_to_send != "":
                             binding.state = 'hooked'
+                            self.save_bindings()
 
 
 class Binding:
     class BindingFrame(tk.Frame):
+        action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay"]
+
         def __init__(self, master, binding_manager, binding_index, *args, **kwargs):
             super().__init__(master=master, *args, **kwargs)
             self.binding_manager = binding_manager
@@ -148,7 +173,7 @@ class Binding:
             # combobox to choose action
             self.action_cb_var = tk.StringVar()
             self.action_cb = ttk.Combobox(self, textvariable=self.action_cb_var)
-            self.action_cb['values'] = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay"]
+            self.action_cb['values'] = self.action_modes
             self.action_cb['state'] = 'readonly'
             self.action_cb.set(self.action_cb['values'][0])
 
@@ -201,10 +226,11 @@ class Binding:
             # else: # todo: here can be problems when i add mouse binding
             #     binding.state = None
 
-    def __init__(self, parent_window, binding_manager, binding_index, hotkey, key_to_send, mode_index, *args, **kwargs):
+    def __init__(self, parent_window, binding_manager, binding_index, hotkey, key_to_send, mode, *args, **kwargs):
         # create a frame
         self.binding_frame = self.BindingFrame(parent_window, binding_manager, binding_index, *args, **kwargs)
         self.event_index = binding_index
+        self.binding_manager = binding_manager
 
         # properties
         self._state = None
@@ -213,11 +239,7 @@ class Binding:
         # initial values
         self.hotkey = hotkey
         self.key_to_send = key_to_send
-        self.delay_mode = mode_index
-
-    # def __del__(self):
-    #     self.binding_frame.pack_forget()
-    #     self.unhook()
+        self.delay_mode = mode
 
     @property
     def state(self):
@@ -339,4 +361,4 @@ class Binding:
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
-                thread =None
+                thread = None

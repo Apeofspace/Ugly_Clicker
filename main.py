@@ -6,5 +6,5 @@ if __name__ == '__main__':
     main_frame.resizable(False, False)
     main_frame.title('Ultimate clicker')
     binding_manager = bindings.BindingManager(master=main_frame)
-    binding_manager.add_binding()
+    binding_manager.load_bindings()
     main_frame.mainloop()
