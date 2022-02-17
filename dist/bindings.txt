@@ -1,0 +1,1 @@
+[{"hotkey": "1", "key_to_send": "2", "delay_mode": "Once"}]

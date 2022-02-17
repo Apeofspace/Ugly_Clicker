@@ -50,7 +50,6 @@ class BindingManager:
         if len(self.binding_list) == 0:
             self.add_binding()
 
-
     def redraw_binding_frames(self):
         for binding in self.binding_list.values():
             binding.binding_frame.pack(side='bottom', padx=5, pady=10)
@@ -76,7 +75,8 @@ class BindingManager:
             data = []
             for binding in self.binding_list.values():
                 if binding.state == 'hooked':
-                    data.append({'hotkey': binding.hotkey, 'key_to_send': binding.key_to_send, 'delay_mode': binding.delay_mode})
+                    data.append({'hotkey': binding.hotkey, 'key_to_send': binding.key_to_send,
+                                 'delay_mode': binding.delay_mode})
             json.dump(data, outfile)
 
     def force_inactive_states(self):
@@ -134,7 +134,7 @@ class BindingManager:
                             final_key_combination = "+".join([*self.modifiers_pressed])
                         else:
                             final_key_combination = "+".join([*self.modifiers_pressed, self.key_pressed])
-                        print(f'final_key_combination = {final_key_combination}')
+                        print(f'{final_key_combination=}')
                         self.modifiers_pressed.clear()
                         self.key_pressed = ''
                         self.count_keys_pressed = 0
@@ -148,7 +148,7 @@ class BindingManager:
 
 class Binding:
     class BindingFrame(tk.Frame):
-        action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay"]
+        action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay", "5 sec delay", "20 sec delay"]
 
         def __init__(self, master, binding_manager, binding_index, *args, **kwargs):
             super().__init__(master=master, *args, **kwargs)
@@ -357,6 +357,24 @@ class Binding:
             # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
                 delay = 2
+                thread = Thread(target=repeat_press, args=(), daemon=True)
+                thread.start()
+            else:
+                thread = None
+
+        if self.delay_mode == "5 sec delay":
+            # print(f'{self.delay_mode} : {self.hotkey_active}')
+            if self.hotkey_active:
+                delay = 5
+                thread = Thread(target=repeat_press, args=(), daemon=True)
+                thread.start()
+            else:
+                thread = None
+
+        if self.delay_mode == "20 sec delay":
+            # print(f'{self.delay_mode} : {self.hotkey_active}')
+            if self.hotkey_active:
+                delay = 20
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
