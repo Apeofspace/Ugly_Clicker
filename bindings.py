@@ -8,11 +8,34 @@ import json
 
 
 class UglyIndicator(tk.Canvas):
-    def __init__(self, master, color):
-        super().__init__(master, width=15, height=15, bg=color)
+    states = ('hooked', 'unhooked', 'active')
 
-    def change_color(self, color):
-        self.config(bg=color)
+    def __init__(self, master):
+        self._state = "inactive"
+        super().__init__(master, width=15, height=15, bg='red')
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        if new_state not in self.states:
+            print('UglyIndicator wrong state')
+            return
+        self._state = new_state
+        self.delete('all')
+        if self.state == 'hooked':
+            self.config(bg="green")
+        if self.state == 'unhooked':
+            self.config(bg="red")
+        if self.state == 'active':
+            self.config(bg="green")
+            x1 = self.winfo_width() / 4
+            y1 = self.winfo_height() / 4
+            x2 = x1 * 3 - 1 # metod podgonki
+            y2 = y1 * 3 - 1 
+            self.create_oval(x1, y1, x2, y2, fill='lightgreen', outline='green')
 
 
 class MainFrame(tk.Tk):
@@ -103,7 +126,7 @@ class BindingManager:
                 if binding.state == "ch_key_to_send":
                     set_combination = Binding.key_to_send.fset  # a way to get a reference to a property
                 if keyboard_event.name == "esc":
-                    set_combination(binding, binding.binding_frame.temp_hk)
+                    set_combination(binding, binding.binding_frame.temp_hk) # this is fine
                     binding.state = None
                 else:
                     if keyboard_event.event_type == keyboard.KEY_DOWN:
@@ -148,7 +171,8 @@ class BindingManager:
 
 class Binding:
     class BindingFrame(tk.Frame):
-        action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay", "5 sec delay", "20 sec delay"]
+        action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay", "5 sec delay",
+                        "20 sec delay"]
 
         def __init__(self, master, binding_manager, binding_index, *args, **kwargs):
             super().__init__(master=master, *args, **kwargs)
@@ -177,7 +201,7 @@ class Binding:
             self.action_cb.set(self.action_cb['values'][0])
 
             # ugly ass indicator
-            self.ugly_indicator = UglyIndicator(self, 'red')
+            self.ugly_indicator = UglyIndicator(self)
 
             # button plus
             self.plus_button = tk.Button(self, text='Add', width=10,
@@ -248,11 +272,11 @@ class Binding:
     def state(self, new_state):
         self._state = new_state
         if new_state != 'hooked':
-            self.binding_frame.ugly_indicator.change_color('red')
-            self.unhook()
+            if self.unhook():
+                self.binding_frame.ugly_indicator.state = 'unhooked'
         if new_state == 'hooked':
-            self.binding_frame.ugly_indicator.change_color('green')
             self.hook()
+            self.binding_frame.ugly_indicator.state = 'hooked'
 
     @property
     def key_to_send(self):
@@ -306,6 +330,7 @@ class Binding:
     def unhook(self):
         try:
             keyboard.remove_hotkey(self.hotkey)
+            return True
         except KeyError:
             print('Failed to unhook')
 
@@ -330,52 +355,58 @@ class Binding:
 
         if self.delay_mode == 'Continuous':
             if self.hotkey_active:
-                # print(f'ACTION! key to send = {self.key_to_send}')
                 keyboard.press(self.key_to_send)
+                self.binding_frame.ugly_indicator.state = 'active'
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 keyboard.release(self.key_to_send)
 
         if self.delay_mode == "0.2 sec delay":
-            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
+                self.binding_frame.ugly_indicator.state = 'active'
                 delay = 0.2
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 thread = None
 
         if self.delay_mode == "1 sec delay":
-            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
+                self.binding_frame.ugly_indicator.state = 'active'
                 delay = 1
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 thread = None
 
         if self.delay_mode == "2 sec delay":
-            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
+                self.binding_frame.ugly_indicator.state = 'active'
                 delay = 2
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 thread = None
 
         if self.delay_mode == "5 sec delay":
-            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
+                self.binding_frame.ugly_indicator.state = 'active'
                 delay = 5
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 thread = None
 
         if self.delay_mode == "20 sec delay":
-            # print(f'{self.delay_mode} : {self.hotkey_active}')
             if self.hotkey_active:
+                self.binding_frame.ugly_indicator.state = 'active'
                 delay = 20
                 thread = Thread(target=repeat_press, args=(), daemon=True)
                 thread.start()
             else:
+                self.binding_frame.ugly_indicator.state = 'hooked'
                 thread = None
