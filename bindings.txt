@@ -1,1 +1,1 @@
-[{"hotkey": "q", "key_to_send": "w", "delay_mode": "Once"}]
+[{"hotkey": "shift+W", "key_to_send": "q", "delay_mode": "1 sec delay", "suppress": "Suppress"}]

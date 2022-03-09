@@ -30,12 +30,11 @@ class UglyIndicator(tk.Canvas):
         if self.state == 'unhooked':
             self.config(bg="red")
         if self.state == 'active':
-            self.config(bg="green")
             x1 = self.winfo_width() / 4
             y1 = self.winfo_height() / 4
-            x2 = x1 * 3 - 1 # metod podgonki
-            y2 = y1 * 3 - 1 
-            self.create_oval(x1, y1, x2, y2, fill='lightgreen', outline='green')
+            x2 = x1 * 3 - 1  # metod podgonki
+            y2 = y1 * 3 - 1
+            self.create_oval(x1, y1, x2, y2, fill='lightgreen', outline='lightgreen')
 
 
 class MainFrame(tk.Tk):
@@ -43,9 +42,10 @@ class MainFrame(tk.Tk):
         super().__init__(*args, **kwargs)
         self.controls_frame = tk.Frame(self)
         self.controls_frame.pack(fill='x', expand=True, side='top', pady=(5, 0))
-        self.label_hk = tk.Label(self.controls_frame, text="Hotkey shortcut").pack(side='left', padx=25)
-        self.label_hk = tk.Label(self.controls_frame, text="Combination to send").pack(side='left', padx=15)
-        self.label_hk = tk.Label(self.controls_frame, text="Repeat").pack(side='left', padx=20)
+        self.label_hotkey = tk.Label(self.controls_frame, text="Shortcut").pack(side='left', padx=(30, 0))
+        self.label_key_to_send = tk.Label(self.controls_frame, text="Combination").pack(side='left', padx=(45, 0))
+        self.label_repeat = tk.Label(self.controls_frame, text="Repeat").pack(side='left', padx=(50, 0))
+        self.label_suppress = tk.Label(self.controls_frame, text="Suppress").pack(side='left', padx=(75, 0))
 
 
 class BindingManager:
@@ -59,10 +59,10 @@ class BindingManager:
         self.parent_window = master
         keyboard.hook(self.on_key_press_callback)
 
-    def add_binding(self, hotkey="", key_to_send="", mode=0):
+    def add_binding(self, hotkey="", key_to_send="", mode=0, suppress='Suppress'):
         self.binding_counter += 1
         self.binding_list[self.binding_counter] = Binding(self.parent_window, self, self.binding_counter,
-                                                          hotkey, key_to_send, mode)
+                                                          hotkey, key_to_send, mode, suppress)
 
     def remove_binding(self, binding_index):
         self.binding_list[binding_index].binding_frame.pack_forget()
@@ -82,7 +82,7 @@ class BindingManager:
             with open('bindings.txt') as outfile:
                 data = json.load(outfile)
                 for item in data:
-                    self.add_binding(item['hotkey'], item['key_to_send'], item['delay_mode'])
+                    self.add_binding(item['hotkey'], item['key_to_send'], item['delay_mode'], item['suppress'])
                 for binding in self.binding_list.values():
                     binding.state = 'hooked'
         except FileNotFoundError as e:
@@ -99,7 +99,7 @@ class BindingManager:
             for binding in self.binding_list.values():
                 if binding.state == 'hooked':
                     data.append({'hotkey': binding.hotkey, 'key_to_send': binding.key_to_send,
-                                 'delay_mode': binding.delay_mode})
+                                 'delay_mode': binding.delay_mode, 'suppress': binding.suppress})
             json.dump(data, outfile)
 
     def force_inactive_states(self):
@@ -126,7 +126,7 @@ class BindingManager:
                 if binding.state == "ch_key_to_send":
                     set_combination = Binding.key_to_send.fset  # a way to get a reference to a property
                 if keyboard_event.name == "esc":
-                    set_combination(binding, binding.binding_frame.temp_hk) # this is fine
+                    set_combination(binding, binding.binding_frame.temp_hk)  # this is fine
                     binding.state = None
                 else:
                     if keyboard_event.event_type == keyboard.KEY_DOWN:
@@ -173,6 +173,7 @@ class Binding:
     class BindingFrame(tk.Frame):
         action_modes = ["Once", "Continuous", "0.2 sec delay", "1 sec delay", "2 sec delay", "5 sec delay",
                         "20 sec delay"]
+        suppress_modes = ["Suppress", "Don't suppress"]
 
         def __init__(self, master, binding_manager, binding_index, *args, **kwargs):
             super().__init__(master=master, *args, **kwargs)
@@ -185,20 +186,29 @@ class Binding:
 
             # entry hotkey
             self.hk_entry_var = tk.StringVar()
-            self.hk_entry = tk.Entry(self, textvariable=self.hk_entry_var)
+            self.hk_entry = tk.Entry(self, textvariable=self.hk_entry_var, width=15)
             self.hk_entry['state'] = 'readonly'
 
             # entry key to send
             self.key_to_send_entry_var = tk.StringVar()
-            self.key_to_send_entry = tk.Entry(self, textvariable=self.key_to_send_entry_var)
+            self.key_to_send_entry = tk.Entry(self, textvariable=self.key_to_send_entry_var, width=15)
             self.key_to_send_entry['state'] = 'readonly'
 
             # combobox to choose action
             self.action_cb_var = tk.StringVar()
-            self.action_cb = ttk.Combobox(self, textvariable=self.action_cb_var)
+            self.action_cb = ttk.Combobox(self, textvariable=self.action_cb_var, width=15)
             self.action_cb['values'] = self.action_modes
             self.action_cb['state'] = 'readonly'
             self.action_cb.set(self.action_cb['values'][0])
+            self.action_cb.bind('<<ComboboxSelected>>', lambda func: self.action_cb_modified_callback())
+
+            # combobox for suppression
+            self.suppress_cb_var = tk.StringVar()
+            self.suppress_cb = ttk.Combobox(self, textvariable=self.suppress_cb_var, width=15)
+            self.suppress_cb['values'] = self.suppress_modes
+            self.suppress_cb['state'] = 'readonly'
+            self.suppress_cb.set(self.suppress_cb['values'][0])
+            self.suppress_cb.bind('<<ComboboxSelected>>', lambda func: self.suppress_cb_modified_callback())
 
             # ugly ass indicator
             self.ugly_indicator = UglyIndicator(self)
@@ -220,10 +230,23 @@ class Binding:
             self.hk_entry.pack(side='left', padx=(10, 5))
             self.key_to_send_entry.pack(side='left', padx=5)
             self.action_cb.pack(side='left', padx=5)
+            self.suppress_cb.pack(side='left', padx=5)
             self.ugly_indicator.pack(side='left', padx=5)
             self.plus_button.pack(side='left', padx=5)
             self.minus_button.pack(side='left', padx=(5, 10))
             self.pack(padx=5, pady=10)
+
+        def suppress_cb_modified_callback(self):
+            binding = self.binding_manager.binding_list[self.binding_index]
+            old_state = binding.state
+            if old_state == 'hooked':
+                binding.state = None
+                binding.state = old_state
+                print(f'changed suppression to {binding.suppress}')
+                self.binding_manager.save_bindings()
+
+        def action_cb_modified_callback(self):
+            self.binding_manager.save_bindings()
 
         def hk_entry_focus_callback(self, mouse_pointer):
             binding = self.binding_manager.binding_list[self.binding_index]
@@ -249,7 +272,7 @@ class Binding:
             # else: # todo: here can be problems when i add mouse binding
             #     binding.state = None
 
-    def __init__(self, parent_window, binding_manager, binding_index, hotkey, key_to_send, mode, *args, **kwargs):
+    def __init__(self, parent_window, binding_manager, binding_index, hotkey, key_to_send, mode, suppress, *args, **kwargs):
         # create a frame
         self.binding_frame = self.BindingFrame(parent_window, binding_manager, binding_index, *args, **kwargs)
         self.event_index = binding_index
@@ -263,6 +286,7 @@ class Binding:
         self.hotkey = hotkey
         self.key_to_send = key_to_send
         self.delay_mode = mode
+        self.suppress = suppress
 
     @property
     def state(self):
@@ -275,7 +299,10 @@ class Binding:
             if self.unhook():
                 self.binding_frame.ugly_indicator.state = 'unhooked'
         if new_state == 'hooked':
-            self.hook()
+            suppress = False
+            if self.suppress == 'Suppress':
+                suppress = True
+            self.hook(suppress=suppress)
             self.binding_frame.ugly_indicator.state = 'hooked'
 
     @property
@@ -312,6 +339,14 @@ class Binding:
             self.binding_frame.action_cb_var.set(mode)
 
     @property
+    def suppress(self):
+        return self.binding_frame.suppress_cb.get()
+
+    @suppress.setter
+    def suppress(self, mode):
+        self.binding_frame.suppress_cb_var.set(mode)
+
+    @property
     def hotkey_active(self):
         return self._pressed
 
@@ -323,9 +358,9 @@ class Binding:
         else:
             self._pressed = value
 
-    def hook(self):
-        print(f'Hooking : {self.hotkey} to {self.key_to_send}')
-        keyboard.add_hotkey(self.hotkey, self.hotkey_pressed_callback)
+    def hook(self, suppress=False):
+        print(f'Hooking : {self.hotkey} to {self.key_to_send}. Suppression = {suppress}')
+        keyboard.add_hotkey(self.hotkey, self.hotkey_pressed_callback, suppress=suppress)
 
     def unhook(self):
         try:
